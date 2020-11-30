@@ -1,0 +1,68 @@
+config:
+  variables:
+    create: "true"
+    {{- $root := . -}}
+    {{- range $name, $container := .container }}    
+    {{- if eq $container.xdebug "default" }}
+    command-xdebug-{{ $name }}: {{ $root.commands.default.xdebug }}
+    {{- end }}
+    {{- if eq $container.xdebug "latest" }}
+    command-xdebug-{{ $name }}: {{ $root.commands.latest.xdebug }}
+    {{- end }}
+    {{- end }}
+    
+task:
+  - id: build-all
+    script:
+      - echo '-- building php docker images'
+    next:
+{{- range $name, $container := .container }}
+{{- if $container.createtask }}
+      - build-dockerfile-{{ $name }}
+      - build-dockerimage-{{ $name }}
+{{- end }}
+{{- end }} 
+    
+      
+
+  - id: build-dockerfiles
+    next:
+{{- range $name, $container := .container }}
+{{- if $container.createtask }}
+      - build-dockerfile-{{ $name }}
+{{- end }}
+{{- end }}      
+
+{{- range $name, $container := .container }}
+{{- if $container.createtask }}
+  - id: build-dockerfile-{{ $name }} 
+    script:
+      - echo "based on image [{{ .image }}]"
+      - echo "FROM {{ .image }}" > {{ $name }}.Dockerfile
+      {{- if $container.xdebug }} 
+      - echo "use template file [templates/${command-xdebug-{{ $name }}}]"
+      - cat "templates/${command-xdebug-{{ $name }}}" >> {{ $name }}.Dockerfile
+      {{- end }}
+
+  # building docker images
+  - id: build-dockerimage-{{ $name }}
+    require:
+      exists:
+         - {{ $name }}.Dockerfile
+    script:
+      - docker build -t {{ .name }} -f {{ $name }}.Dockerfile .
+    next:
+      {{- if .testfile }}
+      - test-image-{{ $name }}
+      {{- end }}
+  {{- if .testfile }}
+  # testing of the builded images if defined
+  - id: test-image-{{ $name }} 
+    require:
+      exists:
+         - templates/{{ .testfile }}
+    script:       
+      - docker run -i --rm -v $(pwd):/app/ {{ .name }} php /app/templates/{{ .testfile }}
+  {{- end }}   
+{{- end }}
+{{- end }}

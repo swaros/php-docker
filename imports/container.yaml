@@ -1,0 +1,26 @@
+images:
+  php-7-1: php:7.1
+  php-7-2: php:7.2
+  php-7-3: php:7.3
+  php-7-4: php:7.4
+  php-7-0: php:7.0
+  php-8-0: php:8.0-rc
+
+container:
+  php-8-0: 
+     image: php:8.0-rc
+     name: php-contanier:8.0-rc
+     createtask: true
+     xdebug: latest
+     testfile: tests/php-run-test.php
+     
+
+commands:
+  latest:
+    xdebug: latest-xdebug.tpl
+    composer: 
+      script: scripts/composer_install.sh
+      requires:
+        - git
+        - wget
+
