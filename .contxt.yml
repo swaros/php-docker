@@ -1,15 +1,24 @@
 config:
   variables:
+    print_pwd_var: "$(pwd)"
     create: "true"
-    {{- $root := . -}}
-    {{- range $name, $container := .container }}    
-    {{- if eq $container.xdebug "default" }}
+{{- $root := . -}}
+{{- range $name, $container := .container }}    
+  {{- if eq $container.xdebug "default" }}
     command-xdebug-{{ $name }}: {{ $root.commands.default.xdebug }}
-    {{- end }}
-    {{- if eq $container.xdebug "latest" }}
+  {{- end }}
+  {{- if eq $container.xdebug "latest" }}
     command-xdebug-{{ $name }}: {{ $root.commands.latest.xdebug }}
-    {{- end }}
-    {{- end }}
+  {{- end }}
+  {{- if eq $container.composer "latest" }}
+    command-composer-{{ $name }}-script: {{ $root.commands.latest.composer.script }}
+    command-composer-{{ $name }}-dockerfile: {{ $root.commands.latest.composer.template }}
+  {{- end }}
+  {{- if eq $container.composer "default" }}
+    command-composer-{{ $name }}-script: {{ $root.commands.default.composer.script }}
+    command-composer-{{ $name }}-dockerfile: {{ $root.commands.default.composer.template }}
+  {{- end }}
+{{- end }}
     
 task:
   - id: build-all
@@ -39,10 +48,20 @@ task:
     script:
       - echo "based on image [{{ .image }}]"
       - echo "FROM {{ .image }}" > {{ $name }}.Dockerfile
-      {{- if $container.xdebug }} 
-      - echo "use template file [templates/${command-xdebug-{{ $name }}}]"
+      - echo "WORKDIR {{ .path }}" >> {{ $name }}.Dockerfile
+  {{- if $container.xdebug }} 
+      - echo "use xdebug template file [templates/${command-xdebug-{{ $name }}}]"
       - cat "templates/${command-xdebug-{{ $name }}}" >> {{ $name }}.Dockerfile
-      {{- end }}
+  {{- end }}
+  {{- if $container.composer }}
+      - echo "use composer template file [templates/${command-composer-{{ $name }}-dockerfile}]"
+      - echo "COPY templates/${command-composer-{{ $name }}-script} {{ .path }}composer_install.sh" >> {{ $name }}.Dockerfile 
+      - cat "templates/${command-composer-{{ $name }}-dockerfile}" >> {{ $name }}.Dockerfile
+      - echo "RUN bash {{ .path }}composer_install.sh" >> {{ $name }}.Dockerfile
+      - echo "using composer with"
+      - echo '     docker run -i --rm -v $(pwd):{{ .path }} {{ .name }} php composer.phar'
+  {{- end }}
+
 
   # building docker images
   - id: build-dockerimage-{{ $name }}
@@ -62,7 +81,7 @@ task:
       exists:
          - templates/{{ .testfile }}
     script:       
-      - docker run -i --rm -v $(pwd):/app/ {{ .name }} php /app/templates/{{ .testfile }}
+      - docker run -i --rm -v $(pwd):{{ .path }} {{ .name }} php {{ .path }}templates/{{ .testfile }}
   {{- end }}   
 {{- end }}
 {{- end }}
