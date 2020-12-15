@@ -1,4 +1,6 @@
 config:
+  imports:
+     - configs/services.yaml service
   variables:
     print_pwd_var: "$(pwd)"
     create: "true"
@@ -58,9 +60,15 @@ task:
       - echo "COPY templates/${command-composer-{{ $name }}-script} {{ .path }}composer_install.sh" >> {{ $name }}.Dockerfile 
       - cat "templates/${command-composer-{{ $name }}-dockerfile}" >> {{ $name }}.Dockerfile
       - echo "RUN bash {{ .path }}composer_install.sh" >> {{ $name }}.Dockerfile
+  {{- end }}
+  {{- if .services }}
+    {{- range $si, $service := .services }}
+      - echo "install service [{{ $service }}]"
+      - echo "${service:services.{{ $service }}.dockerfile}" >> {{ $name }}.Dockerfile
+    {{- end }}
+  {{- end }}
       - echo "using composer with"
       - echo '     docker run -i --rm -v $(pwd):{{ .path }} {{ .name }} php composer.phar'
-  {{- end }}
 
 
   # building docker images
