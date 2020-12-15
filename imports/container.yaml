@@ -12,17 +12,16 @@ container:
      image: php:8.0-rc
      name: php-contanier:8.0-rc
      createtask: true
-     xdebug: latest
-     composer: latest
      testfile: tests/php-run-test.php
      services:
         - mysqli
-     
+        - composer
+        - xdebug
+
 
 commands:
   latest:
     xdebug: latest-xdebug.tpl
-    composer: 
+    composer:
       script: scripts/composer_install.sh
       template: latest-composer.tpl
-

@@ -4,24 +4,6 @@ config:
   variables:
     print_pwd_var: "$(pwd)"
     create: "true"
-{{- $root := . -}}
-{{- range $name, $container := .container }}    
-  {{- if eq $container.xdebug "default" }}
-    command-xdebug-{{ $name }}: {{ $root.commands.default.xdebug }}
-  {{- end }}
-  {{- if eq $container.xdebug "latest" }}
-    command-xdebug-{{ $name }}: {{ $root.commands.latest.xdebug }}
-  {{- end }}
-  {{- if eq $container.composer "latest" }}
-    command-composer-{{ $name }}-script: {{ $root.commands.latest.composer.script }}
-    command-composer-{{ $name }}-dockerfile: {{ $root.commands.latest.composer.template }}
-  {{- end }}
-  {{- if eq $container.composer "default" }}
-    command-composer-{{ $name }}-script: {{ $root.commands.default.composer.script }}
-    command-composer-{{ $name }}-dockerfile: {{ $root.commands.default.composer.template }}
-  {{- end }}
-{{- end }}
-    
 task:
   - id: build-all
     script:
@@ -32,9 +14,9 @@ task:
       - build-dockerfile-{{ $name }}
       - build-dockerimage-{{ $name }}
 {{- end }}
-{{- end }} 
-    
-      
+{{- end }}
+
+
 
   - id: build-dockerfiles
     next:
@@ -42,27 +24,20 @@ task:
 {{- if $container.createtask }}
       - build-dockerfile-{{ $name }}
 {{- end }}
-{{- end }}      
+{{- end }}
 
 {{- range $name, $container := .container }}
 {{- if $container.createtask }}
-  - id: build-dockerfile-{{ $name }} 
+  - id: build-dockerfile-{{ $name }}
     script:
       - echo "based on image [{{ .image }}]"
       - echo "FROM {{ .image }}" > {{ $name }}.Dockerfile
       - echo "WORKDIR {{ .path }}" >> {{ $name }}.Dockerfile
-  {{- if $container.xdebug }} 
-      - echo "use xdebug template file [templates/${command-xdebug-{{ $name }}}]"
-      - cat "templates/${command-xdebug-{{ $name }}}" >> {{ $name }}.Dockerfile
-  {{- end }}
-  {{- if $container.composer }}
-      - echo "use composer template file [templates/${command-composer-{{ $name }}-dockerfile}]"
-      - echo "COPY templates/${command-composer-{{ $name }}-script} {{ .path }}composer_install.sh" >> {{ $name }}.Dockerfile 
-      - cat "templates/${command-composer-{{ $name }}-dockerfile}" >> {{ $name }}.Dockerfile
-      - echo "RUN bash {{ .path }}composer_install.sh" >> {{ $name }}.Dockerfile
-  {{- end }}
   {{- if .services }}
+      - echo "# services ---- " >> {{ $name }}.Dockerfile
+      - echo "RUN apt-get update -yqq" >> {{ $name }}.Dockerfile
     {{- range $si, $service := .services }}
+      - echo "# ---- {{ $service }} " >> {{ $name }}.Dockerfile
       - echo "install service [{{ $service }}]"
       - echo "${service:services.{{ $service }}.dockerfile}" >> {{ $name }}.Dockerfile
     {{- end }}
@@ -84,12 +59,12 @@ task:
       {{- end }}
   {{- if .testfile }}
   # testing of the builded images if defined
-  - id: test-image-{{ $name }} 
+  - id: test-image-{{ $name }}
     require:
       exists:
          - templates/{{ .testfile }}
-    script:       
+    script:
       - docker run -i --rm -v $(pwd):{{ .path }} {{ .name }} php {{ .path }}templates/{{ .testfile }}
-  {{- end }}   
+  {{- end }}
 {{- end }}
 {{- end }}
